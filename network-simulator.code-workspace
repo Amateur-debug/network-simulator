@@ -6,6 +6,9 @@
 		{
 			"path": "../systemc/src",
 			"name": "systemc",
+		},
+		{
+			"path": "../editor_config",
 		}
 	],
 	"settings": {

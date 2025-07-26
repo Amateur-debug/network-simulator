@@ -2,7 +2,7 @@
 #include <arpa/inet.h>
 
 #include "packet_generator.hpp"
-#include "tx_port.hpp"
+#include "network_port.hpp"
 #include "backend.hpp"
 #include "packet.hpp"
 
@@ -27,10 +27,10 @@ void packet_generator::send()
         EthernetII eth_ii;
         vector<uint8_t> payload_data(64, 0xAB);
 
-        udp_header.src_port = htons(12345);
-        udp_header.dest_port = htons(22222);
-        ipv4_header.src_ip = inet_addr("127.0.0.1");
-        ipv4_header.dest_ip = inet_addr("127.0.0.1");
+        udp_header.src_port = htons(CLIENT_PORT);
+        udp_header.dest_port = htons(SERVER_PORT);
+        ipv4_header.src_ip = inet_addr(CLIENT_ADDR);
+        ipv4_header.dest_ip = inet_addr(SERVER_ADDR);
 
         Packet packet(udp_header, ipv4_header, eth_ii, payload_data);
 
@@ -59,12 +59,12 @@ void packet_generator::send()
 }
 
 int sc_main(int argc, char *argv[]) {
-    packet_generator packet_generator("packet_generator");
-    tx_port tx_port("tx_port");
-    backend backend("backend");
+    packet_generator _packet_generator("packet_generator");
+    tx_port _tx_port("tx_port");
+    backend _backend("backend");
 
-    packet_generator.packet_initiator(tx_port.tx_port_in);
-    tx_port.tx_port_out(backend.tx_target);
+    _packet_generator.packet_initiator(_tx_port.tx_port_in);
+    _tx_port.tx_port_out(_backend.tx_target);
 
     sc_start(1000, SC_NS);
     return 0;

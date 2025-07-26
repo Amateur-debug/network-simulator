@@ -1,11 +1,13 @@
 #ifndef PACKET_HPP
 #define PACKET_HPP
 
-#include <cstdint>
-#include <vector>
 #include <iostream>
+#include <vector>
 
 using namespace std;
+
+namespace netsim
+{
 
 // IPv4头结构
 #pragma pack(push, 1) // 确保结构体紧凑, 没有内存对齐
@@ -61,10 +63,13 @@ struct UDPHeader
 #pragma pack(push, 1) // 确保结构体紧凑, 没有内存对齐
 struct EthernetII
 {
-    uint64_t dest_mac : 48 = 0; // 源mac
-    uint64_t src_mac : 48 = 0;  // 目标mac
-    uint16_t type = 0;          // 上层协议类型
-    uint32_t fcs = 0;           // 帧校验序列（Frame Check Sequence)
+    uint64_t dest_mac_addr : 48 = 0; // 源mac
+    uint64_t src_mac_addr : 48 = 0;  // 目标mac
+    uint16_t type = 0;               // 上层协议类型
+    uint32_t fcs = 0;                // 帧校验序列（Frame Check Sequence)
+
+public:
+    string mac_addr_to_string(uint64_t mac_addr);
 };
 #pragma pack(pop)
 
@@ -83,7 +88,9 @@ public:
 
     Packet(UDPHeader udp_header, IPv4Header ipv4_header, EthernetII eth_ii, vector<uint8_t> payload);
 
-    friend ostream& operator<<(ostream& os, const Packet& packet);
+    friend ostream &operator<<(ostream &os, const Packet &packet);
 };
 
-#endif // PACKET_HPP
+}
+
+#endif
