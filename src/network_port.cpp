@@ -1,37 +1,23 @@
 #include "network_port.hpp"
+#include <cstring>
 
 namespace netsim
 {
 
+using namespace std;
+
+using namespace sc_core;
+using namespace sc_dt;
+using namespace tlm;
+using namespace tlm_utils;
+
 NetworkPort::NetworkPort(sc_module_name name, const int &fifo_size)
     : sc_module(name),
-      receive_target("receive_target"),
-      packet_fifo("packet_fifo", fifo_size)
-{
-    // 注册 nb_transport 方法 receive 到 target_socket
-    receive_target.register_nb_transport_fw(this, &NetworkPort::receive);
-}
-
-tlm_sync_enum NetworkPort::receive(tlm_generic_payload &payload, tlm_phase &phase, sc_time &delay)
-{
-    // 获取数据
-    unsigned char *data_ptr = payload.get_data_ptr();
-    unsigned int data_length = payload.get_data_length();
-    Packet *packet_ptr = reinterpret_cast<Packet *>(data_ptr);
-
-    // 阻塞写入 FIFO
-    packet_fifo.write(*packet_ptr);
-
-    // early response
-    payload.set_response_status(TLM_OK_RESPONSE);
-    phase = END_RESP;
-    delay += sc_time(1, SC_NS);
-    return TLM_COMPLETED;
-}
+      packet_fifo("packet_fifo", fifo_size) {}
 
 TxPort::TxPort(sc_module_name name, const int &fifo_size)
     : NetworkPort(name, fifo_size),
-      send_initiator("send_initiator")
+      tx_initiator("tx_initiator")
 {
     SC_THREAD(send);
 }
@@ -40,47 +26,64 @@ void TxPort::send()
 {
     while (true)
     {
-        Packet packet = packet_fifo.read();
+        SC_REPORT_INFO("TxPort", "Starting send process...");
 
-        // 创建 TLM transaction
-        tlm_generic_payload payload;
-        sc_time delay = sc_time(0, SC_NS);
+        vector<unsigned char> pkt = packet_fifo.read();
+
+        tlm_generic_payload trans;
         tlm_phase phase = BEGIN_REQ;
+        sc_time delay = sc_time(0, SC_NS);
 
-        // 设置 transaction 参数
-        payload.set_command(TLM_WRITE_COMMAND);
-        payload.set_data_ptr(reinterpret_cast<unsigned char *>(&packet));
-        payload.set_data_length(sizeof(Packet));
-        payload.set_response_status(TLM_INCOMPLETE_RESPONSE);
+        trans.set_command(TLM_READ_COMMAND);
+        trans.set_data_ptr(pkt.data());
+        trans.set_data_length(pkt.size());
+        trans.set_streaming_width(pkt.size());
+        trans.set_byte_enable_ptr(nullptr);
+        trans.set_dmi_allowed(false);
 
-        // 发送数据包
-        tlm_sync_enum status = send_initiator->nb_transport_fw(payload, phase, delay);
+        tx_initiator->nb_transport_fw(trans, phase, delay);
 
-        // 模拟传输延迟
-        delay += sc_time(10, SC_NS);
+        if (trans.get_response_status() != TLM_OK_RESPONSE)
+        {
+            SC_REPORT_WARNING("TxPort", "send failed");
+        }
+
         wait(delay);
     }
 }
 
 RxPort::RxPort(sc_module_name name, const int &fifo_size)
     : NetworkPort(name, fifo_size),
-      read_target("read_target")
+      rx_target("rx_target")
 {
-    read_target.register_nb_transport_fw(this, &RxPort::read);
+    rx_target.register_nb_transport_fw(this, &RxPort::receive);
 }
 
-tlm_sync_enum RxPort::read(tlm_generic_payload &payload, tlm_phase &phase, sc_time &delay)
+tlm_sync_enum RxPort::receive(int id, tlm_generic_payload &trans, tlm_phase &phase, sc_time &delay)
 {
+    unsigned char *pkt_ptr = trans.get_data_ptr();
+    unsigned int pkt_len = trans.get_data_length();
+    unsigned int sw = trans.get_streaming_width();
 
-    // 获取数据
-    unsigned char *data_ptr = payload.get_data_ptr();
-    Packet *packet_ptr = reinterpret_cast<Packet *>(data_ptr);
-    *packet_ptr = packet_fifo.read();
-    
-    payload.set_response_status(TLM_OK_RESPONSE);
+    if (pkt_len == 0)
+    {
+        trans.set_response_status(TLM_OK_RESPONSE);
+        return TLM_COMPLETED;
+    }
+
+    std::vector<unsigned char> pkt;
+    pkt.resize(pkt_len);
+    std::memcpy(pkt.data(), pkt_ptr, pkt_len);
+
+    packet_fifo.write(std::move(pkt));
+
+    trans.set_response_status(TLM_OK_RESPONSE);
     phase = END_RESP;
-    
-    delay += sc_time(1, SC_NS);
+
+    unsigned int seg = (sw == 0 || sw > pkt_len) ? pkt_len : sw;
+    unsigned int num_segs = (pkt_len + seg - 1) / seg;
+    delay += num_segs * sc_time(1, SC_NS);
+
     return TLM_COMPLETED;
 }
 

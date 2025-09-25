@@ -3,79 +3,92 @@
 namespace netsim
 {
 
+using namespace std;
+
+using namespace sc_core;
+using namespace sc_dt;
+using namespace tlm;
+using namespace tlm_utils;
+
 NIC::NIC(sc_module_name name, const int &num_tx_port, const int &num_rx_port,
-         const int &tx_queue_size, const int &rx_queue_size)
+         const int &desc_fifo_szie, const int &tx_queue_size, const int &rx_queue_size)
     : sc_module(name),
-      nic_target("nic_target"),
+      data_initiator("data_initiator"),
+      desc_target("desc_target"),
+      tx_initiators("tx_initiators", num_tx_port),
+      rx_targets("rx_targets", num_rx_port),
       tx_ports("tx_ports", num_tx_port),
       rx_ports("rx_ports", num_rx_port),
-      send_initiator("send_initiator"),
-      fetch_initiator("fetch_initiator"),
-      tx_queue("tx_queue", tx_queue_size),
-      rx_queue("rx_queue", rx_queue_size)
+      dma("dma", desc_fifo_szie, tx_queue_size, rx_queue_size)
 {
-    SC_THREAD(tx_schedule);
-    SC_THREAD(rx_schedule);
-
-    nic_target.register_nb_transport_fw(this, &NIC::nic_slave);
-
+    
+    dma.data_initiator.bind(data_initiator);
+    desc_target.bind(dma.desc_target);
+    
     for (int i = 0; i < tx_ports.size(); i++)
     {
-        send_initiator(tx_ports[i].receive_target);
+        tx_ports[i].tx_initiator.bind(tx_initiators[i]);
     }
-
     for (int i = 0; i < rx_ports.size(); i++)
     {
-        fetch_initiator(rx_ports[i].read_target);
+        rx_targets[i].bind(rx_ports[i].rx_target);
+    }
+
+    if (num_tx_port > 0)
+    {
+        SC_THREAD(send);
+    }
+    if (num_rx_port > 0)
+    {
+        SC_THREAD(receive);
     }
 }
 
-tlm_sync_enum NIC::nic_slave(tlm_generic_payload &payload, tlm_phase &phase, sc_time &delay)
-{
-    // 获取数据
-    unsigned char *data_ptr = payload.get_data_ptr();
-    unsigned int data_length = payload.get_data_length();
-    Packet *packet_ptr = reinterpret_cast<Packet *>(data_ptr);
-
-    if (payload.get_command() == TLM_READ_COMMAND)
+void NIC::send()
+{   
+    int port_id = 0;
+    while (true)
     {
-        // 读取数据
-        *packet_ptr = rx_queue.read();
-    }
-    else if (payload.get_command() == TLM_WRITE_COMMAND)
-    {
-        // 写入数据
-        tx_queue.write(*packet_ptr);
-    }
+        SC_REPORT_INFO("NIC", "Starting send process...");
 
-    // early response
-    payload.set_response_status(TLM_OK_RESPONSE);
-    phase = END_RESP;
-    delay += sc_time(1, SC_NS);
-    return TLM_COMPLETED;
+        vector<unsigned char> pkt = dma.write_packet_fifo.read();
+
+        tlm_generic_payload trans;
+        trans.set_command(TLM_WRITE_COMMAND);
+        trans.set_data_ptr(pkt.data());
+        trans.set_data_length(pkt.size());
+        trans.set_streaming_width(pkt.size());
+        trans.set_byte_enable_ptr(nullptr);
+        trans.set_dmi_allowed(false);
+        tlm_phase phase = BEGIN_REQ;
+
+        sc_time delay = SC_ZERO_TIME;
+
+        tx_initiators[port_id]->nb_transport_fw(trans, phase, delay);
+
+        if (port_id < tx_ports.size())
+        {
+            port_id++;
+        }
+        else
+        {
+            port_id = 0;
+        }
+
+        wait(delay);
+    }
 }
 
-void NIC::tx_schedule()
+void NIC::receive()
 {
     int port_id = 0;
     while (true)
     {
-        // 创建 TLM transaction
-        tlm_generic_payload payload;
-        sc_time delay = sc_time(0, SC_NS);
-        tlm_phase phase = BEGIN_REQ;
-        Packet packet = tx_queue.read();
+        SC_REPORT_INFO("NIC", "Starting receive process...");
 
-        // 设置 transaction 参数
-        payload.set_command(TLM_READ_COMMAND);
-        payload.set_data_ptr(reinterpret_cast<unsigned char *>(&packet));
-        payload.set_data_length(sizeof(Packet));
-        payload.set_response_status(TLM_INCOMPLETE_RESPONSE);
+        vector<unsigned char> pkt = rx_ports[port_id].packet_fifo.read();
 
-        // 向tx port发送数据包
-        tlm_sync_enum status = send_initiator[port_id]->nb_transport_fw(payload, phase, delay);
-
-        wait(delay);
+        dma.write_packet_fifo.write(move(pkt));
 
         if (port_id < rx_ports.size())
         {
@@ -85,41 +98,9 @@ void NIC::tx_schedule()
         {
             port_id = 0;
         }
-    }
-}
 
-void NIC::rx_schedule()
-{
-    int port_id = 0;
-    while (true)
-    {
-        // 创建 TLM transaction
-        tlm_generic_payload payload;
-        sc_time delay = sc_time(0, SC_NS);
-        tlm_phase phase = BEGIN_REQ;
-        Packet packet;
-
-        // 设置 transaction 参数
-        payload.set_command(TLM_READ_COMMAND);
-        payload.set_data_ptr(reinterpret_cast<unsigned char *>(&packet));
-        payload.set_data_length(sizeof(Packet));
-        payload.set_response_status(TLM_INCOMPLETE_RESPONSE);
-
-        // 从rx port获取数据包
-        tlm_sync_enum status = fetch_initiator[port_id]->nb_transport_fw(payload, phase, delay);
-
-        rx_queue.write(packet);
-
+        sc_time delay = sc_time(1, SC_NS);
         wait(delay);
-
-        if (port_id < rx_ports.size())
-        {
-            port_id++;
-        }
-        else
-        {
-            port_id = 0;
-        }
     }
 }
 

@@ -3,50 +3,33 @@
 
 #include "systemc"
 #include "tlm"
+#include "tlm_utils/multi_passthrough_initiator_socket.h"
+#include "tlm_utils/multi_passthrough_target_socket.h"
 #include "tlm_utils/simple_initiator_socket.h"
 #include "tlm_utils/simple_target_socket.h"
 
 #include "packet.hpp"
-
-using namespace sc_core;
-using namespace sc_dt;
-using namespace tlm;
-using namespace tlm_utils;
+#include "stream_out.hpp"
 
 namespace netsim
 {
 
-class NetworkPort : public sc_module
+class NetworkPort : public sc_core::sc_module
 {
 public:
-    simple_target_socket<NetworkPort> receive_target;
+    sc_core::sc_fifo<std::vector<unsigned char>> packet_fifo;
 
-    // Register SystemC thread
-    SC_HAS_PROCESS(NetworkPort);
-
-    // Constructor
-    NetworkPort(sc_module_name name, const int &fifo_size = 16);
-
-protected:
-    // FIFO for packet storage
-    sc_fifo<Packet> packet_fifo;
-
-private:
-    tlm_sync_enum receive(tlm_generic_payload &payload,
-                          tlm_phase &phase,
-                          sc_time &delay);
+    NetworkPort(sc_core::sc_module_name name, const int &fifo_size = 16);
 };
 
 class TxPort : public NetworkPort
 {
 public:
-    simple_initiator_socket<TxPort> send_initiator;
+    tlm_utils::multi_passthrough_initiator_socket<TxPort> tx_initiator;
 
-    // Register SystemC thread
+    TxPort(sc_core::sc_module_name name, const int &fifo_size = 16);
+
     SC_HAS_PROCESS(TxPort);
-
-    // Constructor
-    TxPort(sc_module_name name, const int &fifo_size = 16);
 
 private:
     void send();
@@ -55,13 +38,14 @@ private:
 class RxPort : public NetworkPort
 {
 public:
-    simple_target_socket<RxPort> read_target;
+    tlm_utils::multi_passthrough_target_socket<RxPort> rx_target;
 
-    // Constructor
-    RxPort(sc_module_name name, const int &fifo_size = 16);
+    RxPort(sc_core::sc_module_name name, const int &fifo_size = 16);
 
 private:
-    tlm_sync_enum read(tlm_generic_payload &payload, tlm_phase &phase, sc_time &delay);
+    tlm::tlm_sync_enum receive(int id, tlm::tlm_generic_payload &trans,
+                               tlm::tlm_phase &phase,
+                               sc_core::sc_time &delay);
 };
 
 }

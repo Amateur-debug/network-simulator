@@ -3,51 +3,42 @@
 
 #include "systemc"
 #include "tlm"
-#include "tlm_utils/multi_passthrough_initiator_socket.h"
-#include "tlm_utils/multi_passthrough_target_socket.h"
 #include "tlm_utils/simple_initiator_socket.h"
 #include "tlm_utils/simple_target_socket.h"
+#include "tlm_utils/multi_passthrough_initiator_socket.h"
+#include "tlm_utils/multi_passthrough_target_socket.h"
 
+#include "dma.hpp"
 #include "network_port.hpp"
-
-using namespace std;
-using namespace sc_core;
-using namespace sc_dt;
-using namespace tlm;
-using namespace tlm_utils;
+#include "stream_out.hpp"
 
 namespace netsim
 {
 
-class NIC : public sc_module
+class NIC : public sc_core::sc_module
 {
 public:
-    simple_target_socket<NIC> nic_target;
 
-    sc_vector<simple_initiator_socket<NIC>> tx_ports_initiators;
-    sc_vector<simple_target_socket<NIC>> rx_ports_targets;
+    tlm_utils::multi_passthrough_initiator_socket<NIC> data_initiator;
+    tlm_utils::multi_passthrough_target_socket<NIC> desc_target;
 
-    // Register SystemC thread
+    sc_core::sc_vector<tlm_utils::multi_passthrough_initiator_socket<NIC>> tx_initiators;
+    sc_core::sc_vector<tlm_utils::multi_passthrough_target_socket<NIC>> rx_targets;
+
     SC_HAS_PROCESS(NIC);
 
-    // Constructor
-    NIC(sc_module_name name, const int &num_tx_port = 1, const int &num_rx_port = 1,
-        const int &tx_queue_size = 200, const int &rx_queue_size = 200);
+    NIC(sc_core::sc_module_name name, const int &num_tx_port = 1, const int &num_rx_port = 1,
+        const int &desc_fifo_size = 200, const int &tx_queue_size = 200, const int &rx_queue_size = 200);
 
 private:
-    tlm_sync_enum nic_slave(tlm_generic_payload &payload, tlm_phase &phase, sc_time &delay);
-    
-    sc_vector<TxPort> tx_ports;
-    sc_vector<RxPort> rx_ports;
 
-    multi_passthrough_initiator_socket<NIC> send_initiator;
-    multi_passthrough_initiator_socket<NIC> fetch_initiator;
+    sc_core::sc_vector<TxPort> tx_ports;
+    sc_core::sc_vector<RxPort> rx_ports;
 
-    sc_fifo<Packet> tx_queue;
-    sc_fifo<Packet> rx_queue;
+    DMA dma;
 
-    void tx_schedule();
-    void rx_schedule();
+    void send();
+    void receive();
 };
 
 }

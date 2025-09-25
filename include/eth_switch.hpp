@@ -2,28 +2,20 @@
 #define ETH_SWITCH_HPP
 
 #include "systemc"
-#include "tlm"
-#include "tlm_utils/simple_initiator_socket.h"
-#include "tlm_utils/simple_target_socket.h"
 #include "tlm_utils/multi_passthrough_initiator_socket.h"
 #include "tlm_utils/multi_passthrough_target_socket.h"
 
 #include "network_port.hpp"
-
-using namespace std;
-using namespace sc_core;
-using namespace sc_dt;
-using namespace tlm;
-using namespace tlm_utils;
+#include "stream_out.hpp"
 
 namespace netsim
 {
 
 struct MacAddrTableEntry
 {
-    string mac_addr;
+    sc_dt::sc_uint<48> mac_addr;
     int port_id;
-    sc_time time_stamp;
+    sc_core::sc_time time_stamp;
     bool valid = false;
 };
 
@@ -32,62 +24,60 @@ class MacAddrTable
 public:
     MacAddrTable(int size);
 
-    int insert(const string &mac_addr, int &port_id);
+    int insert(const sc_dt::sc_uint<48> &mac_addr, const int &port_id);
 
-    void insert(const string &mac_addr, int &port_id, int &pos);
+    void insert(const sc_dt::sc_uint<48> &mac_addr, const int &port_id, const int &pos);
 
     void remove(int pos);
 
-    int MacAddrTable::find_oldest_entry();
+    int find_oldest_entry();
 
-    int lookup(const string &mac_addr);
+    int lookup(const sc_dt::sc_uint<48> &mac_addr);
 
 private:
-    vector<MacAddrTableEntry> table;
+    std::vector<MacAddrTableEntry> table;
 };
 
 struct ProcFifoEntry
 {
     int port_id;
-    Packet packet;
+    std::vector<unsigned char> pkt;
+
+    friend std::ostream &operator<<(std::ostream &os, const ProcFifoEntry &entry);
 };
 
-class EthSwitch : public sc_module
+class EthSwitch : public sc_core::sc_module
 {
 public:
-    sc_vector<simple_initiator_socket<EthSwitch>> tx_ports_initiators;
-    sc_vector<simple_target_socket<EthSwitch>> rx_ports_targets;
+    sc_core::sc_vector<tlm_utils::multi_passthrough_initiator_socket<EthSwitch>> tx_initiators;
+    sc_core::sc_vector<tlm_utils::multi_passthrough_target_socket<EthSwitch>> rx_targets;
+    
+    void set_mac_addr_table(const sc_dt::sc_uint<48> &mac_addr, const int &port_id);
 
-    // Register SystemC thread
     SC_HAS_PROCESS(EthSwitch);
 
-    // Constructor
-    EthSwitch(sc_module_name name, const int &num_tx_port = 2, const int &num_rx_port = 2,
-              const int &fifo_size = 200, const int &mac_addr_table_size = 100);
+    EthSwitch(sc_core::sc_module_name name,
+              const int &num_tx_port,
+              const int &num_rx_port,
+              const int &fifo_size = 200,
+              const int &mac_addr_table_size = 100);
 
 private:
-    sc_vector<TxPort> tx_ports;
-    sc_vector<RxPort> rx_ports;
-
-    multi_passthrough_initiator_socket<EthSwitch> forward_initiator;
-    multi_passthrough_initiator_socket<EthSwitch> fetch_initiator;
+    sc_core::sc_vector<TxPort> tx_ports;
+    sc_core::sc_vector<RxPort> rx_ports;
 
     MacAddrTable mac_addr_table;
-
-    sc_fifo<ProcFifoEntry> process_fifo;
-
+    sc_core::sc_fifo<ProcFifoEntry> process_fifo;
     int mac_addr_table_size;
+    int used_mac_addr_entries_num;
 
-    int used_mac_addr_entries_num = 0;
+    void learn(const sc_dt::sc_uint<48> &mac_addr, int &port_id);
 
-    void learn(const string &mac_addr, int &port_id);
+    void send(int port_id, std::vector<unsigned char> &pkt);
 
-    void forward(int &port_id, Packet &packet);
+    void forward();
 
     void schedule();
-
-    void process();
-    
 };
 
 }

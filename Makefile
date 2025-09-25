@@ -1,11 +1,11 @@
 # SystemC Path
-SYSTEMC_HOME = /home/xingyu/workspace/systemc/systemc
+SYSTEMC_HOME = /home/CONNECT/xchen740/workspace/systemc/build/systemc
 
 # Network-Simulator Path
-NIC_SIMULATOR_HOME = /home/xingyu/workspace/network-simulator
+NIC_SIMULATOR_HOME = /home/CONNECT/xchen740/workspace/network-simulator
 
 # Test Name
-TEST_NAME = packet_generator
+TEST_NAME = send_test
 
 # Build Directory
 CORE_BUILD_DIR = $(NIC_SIMULATOR_HOME)/build
@@ -21,9 +21,7 @@ TEST_SRC_PATH = $(NIC_SIMULATOR_HOME)/test/$(TEST_NAME)
 
 # Source files
 CORE_SRC_FILES = $(foreach DIR, $(CORE_SRC_PATH), $(wildcard $(DIR)/*.cpp))
-TEST_SRC_FILES :=
-
-include $(NIC_SIMULATOR_HOME)/test/$(TEST_NAME)/$(TEST_NAME).mk
+TEST_SRC_FILES = $(wildcard $(TEST_SRC_PATH)/*.cpp)
 
 # Object files
 CORE_OBJ_FILES = $(patsubst $(CORE_SRC_PATH)/%.cpp, $(CORE_BUILD_DIR)/%.o, $(CORE_SRC_FILES))
@@ -61,6 +59,7 @@ $(TEST_BUILD_DIR)/%.o: $(TEST_SRC_PATH)/%.cpp | $(TEST_BUILD_DIR)
 
 run: $(TARGET)
 	LD_LIBRARY_PATH=$(SYSTEMC_HOME)/lib:$$LD_LIBRARY_PATH && \
+	export LD_LIBRARY_PATH && \
 	cd $(TEST_BUILD_DIR) && ./sim
 
 clean:
