@@ -51,7 +51,7 @@ void NIC::send()
     {
         SC_REPORT_INFO("NIC", "Starting send process...");
 
-        vector<unsigned char> pkt = dma.write_packet_fifo.read();
+        vector<unsigned char> pkt = dma.read_packet_fifo.read();
 
         tlm_generic_payload trans;
         trans.set_command(TLM_WRITE_COMMAND);
@@ -66,7 +66,7 @@ void NIC::send()
 
         tx_initiators[port_id]->nb_transport_fw(trans, phase, delay);
 
-        if (port_id < tx_ports.size())
+        if (port_id < tx_ports.size() - 1)
         {
             port_id++;
         }
@@ -90,7 +90,7 @@ void NIC::receive()
 
         dma.write_packet_fifo.write(move(pkt));
 
-        if (port_id < rx_ports.size())
+        if (port_id < rx_ports.size() - 1)
         {
             port_id++;
         }

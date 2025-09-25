@@ -74,7 +74,7 @@ void UDPClient::send(Packet pkt)
     Descriptor desc;
     desc.type = DescriptorType::mem2device;
     desc.src_addr = 0;
-    desc.length = sizeof(pkt);
+    desc.length = serialized_pkt.size();
 
     tlm_generic_payload desc_trans;
     tlm_phase desc_phase = BEGIN_REQ;
@@ -89,7 +89,6 @@ void UDPClient::send(Packet pkt)
     desc_trans.set_dmi_allowed(false);
 
     cpu_desc_initiator->nb_transport_fw(desc_trans, desc_phase, desc_delay);
-
     wait(desc_delay);
 }
 
