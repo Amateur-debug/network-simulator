@@ -1,5 +1,5 @@
-#ifndef SEND_TEST_HPP
-#define SEND_TEST_HPP
+#ifndef ENDPOINT_TEST_HPP
+#define ENDPOINT_TEST_HPP
 
 #include "systemc"
 #include "tlm"

@@ -3,7 +3,7 @@
 
 #include "endpoint.hpp"
 #include "eth_switch.hpp"
-#include "send_test.hpp"
+#include "endpoint_test.hpp"
 
 namespace netsim
 {
