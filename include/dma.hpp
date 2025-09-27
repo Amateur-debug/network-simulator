@@ -35,7 +35,6 @@ struct Descriptor
 class DMA : public sc_core::sc_module
 {
 public:
-    SC_HAS_PROCESS(DMA);
 
     tlm_utils::multi_passthrough_initiator_socket<DMA> data_initiator;
     tlm_utils::multi_passthrough_target_socket<DMA> desc_target;

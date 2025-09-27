@@ -41,6 +41,9 @@ LDFLAGS = -L$(SYSTEMC_HOME)/lib -lsystemc
 # Target executable
 TARGET = sim
 
+DATE_FMT := +%Y%m%d_%H%M%S
+LOG_FILE := $(shell date $(DATE_FMT)).log
+
 # Create directories
 $(CORE_BUILD_DIR) $(TEST_BUILD_DIR):
 	mkdir -p $(CORE_BUILD_DIR)
@@ -60,7 +63,7 @@ $(TEST_BUILD_DIR)/%.o: $(TEST_SRC_PATH)/%.cpp | $(TEST_BUILD_DIR)
 run: $(TARGET)
 	LD_LIBRARY_PATH=$(SYSTEMC_HOME)/lib:$$LD_LIBRARY_PATH && \
 	export LD_LIBRARY_PATH && \
-	cd $(TEST_BUILD_DIR) && ./sim
+	cd $(TEST_BUILD_DIR) && ./sim > $(LOG_FILE) 2>&1
 
 clean:
 	rm -rf $(TEST_BUILD_DIR) $(CORE_BUILD_DIR)

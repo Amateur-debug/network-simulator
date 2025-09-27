@@ -15,8 +15,6 @@ public:
 
     sc_core::sc_vector<tlm_utils::simple_initiator_socket<Crossbar>> m_initiators;
 
-    SC_HAS_PROCESS(Crossbar);
-
     Crossbar(sc_core::sc_module_name name, unsigned num_masters = 2, unsigned num_slaves = 2);
 
     void set_mapping(unsigned slave, std::uint64_t base, std::uint64_t size);

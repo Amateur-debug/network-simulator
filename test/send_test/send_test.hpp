@@ -3,16 +3,15 @@
 
 #include "systemc"
 #include "tlm"
-#include "tlm_utils/simple_initiator_socket.h"
-#include "tlm_utils/simple_target_socket.h"
 #include "tlm_utils/multi_passthrough_initiator_socket.h"
 #include "tlm_utils/multi_passthrough_target_socket.h"
+#include "tlm_utils/simple_initiator_socket.h"
+#include "tlm_utils/simple_target_socket.h"
 
 #include "endpoint.hpp"
 
 namespace netsim
 {
-
 
 #define CLIENT_PORT 22222
 #define CLIENT_IP_ADDR "192.168.0.1"
@@ -28,10 +27,6 @@ public:
     tlm_utils::multi_passthrough_initiator_socket<Client> send_initiator;
     tlm_utils::multi_passthrough_target_socket<Client> receive_target;
 
-    // Register SystemC thread
-    SC_HAS_PROCESS(Client);
-
-    // Constructor
     Client(sc_core::sc_module_name name);
 
 private:
@@ -45,10 +40,6 @@ public:
     tlm_utils::multi_passthrough_initiator_socket<Server> send_initiator;
     tlm_utils::multi_passthrough_target_socket<Server> receive_target;
 
-    // Register SystemC thread
-    SC_HAS_PROCESS(Server);
-
-    // Constructor
     Server(sc_core::sc_module_name name);
 
 private:

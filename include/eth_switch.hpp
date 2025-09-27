@@ -53,9 +53,7 @@ public:
     sc_core::sc_vector<tlm_utils::multi_passthrough_target_socket<EthSwitch>> rx_targets;
     
     void set_mac_addr_table(const sc_dt::sc_uint<48> &mac_addr, const int &port_id);
-
-    SC_HAS_PROCESS(EthSwitch);
-
+    
     EthSwitch(sc_core::sc_module_name name,
               const int &num_tx_port,
               const int &num_rx_port,

@@ -29,8 +29,6 @@ public:
 
     TxPort(sc_core::sc_module_name name, const int &fifo_size = 16);
 
-    SC_HAS_PROCESS(TxPort);
-
 private:
     void send();
 };

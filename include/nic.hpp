@@ -25,8 +25,6 @@ public:
     sc_core::sc_vector<tlm_utils::multi_passthrough_initiator_socket<NIC>> tx_initiators;
     sc_core::sc_vector<tlm_utils::multi_passthrough_target_socket<NIC>> rx_targets;
 
-    SC_HAS_PROCESS(NIC);
-
     NIC(sc_core::sc_module_name name, const int &num_tx_port = 1, const int &num_rx_port = 1,
         const int &desc_fifo_size = 200, const int &tx_queue_size = 200, const int &rx_queue_size = 200);
 
